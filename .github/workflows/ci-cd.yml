@@ -1,0 +1,128 @@
+name: Build and Push Docker Images to Docker Hub
+
+on:
+  push:
+    branches: [ deploy ]
+
+env:
+  REGISTRY: docker.io
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Build y Push Backend Despachos
+      - name: Build and push Backend Despachos
+        uses: docker/build-push-action@v5
+        with:
+          context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+          file: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
+            ${{ secrets.DOCKER_USERNAME }}/backend-despacho:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-despacho:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-despacho:buildcache,mode=max
+
+      # Build y Push Backend Ventas
+      - name: Build and push Backend Ventas
+        uses: docker/build-push-action@v5
+        with:
+          context: ./back-Ventas_SpringBoot/Springboot-API-REST
+          file: ./back-Ventas_SpringBoot/Springboot-API-REST/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
+            ${{ secrets.DOCKER_USERNAME }}/backend-ventas:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-ventas:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-ventas:buildcache,mode=max
+
+      # Build y Push Frontend
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./front_despacho
+          file: ./front_despacho/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
+            ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/frontend-despacho:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/frontend-despacho:buildcache,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 Frontend
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_FRONTEND_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            cd /home/ec2-user/app
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
+            docker stop frontend || true
+            docker rm frontend || true
+            docker run -d --name frontend -p 80:80 --network app-network \
+              ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
+
+      - name: Deploy to EC2 Backends
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_BACKENDS_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            cd /home/ec2-user/app
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            
+            # Deploy Backend Despachos
+            docker pull ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
+            docker stop backend-despacho || true
+            docker rm backend-despacho || true
+            docker run -d --name backend-despacho -p 8081:8081 --network app-network \
+              -e DB_ENDPOINT=${{ secrets.DB_ENDPOINT }} \
+              -e DB_PORT=${{ secrets.DB_PORT }} \
+              -e DB_NAME=${{ secrets.DB_NAME }} \
+              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
+            
+            # Deploy Backend Ventas
+            docker pull ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
+            docker stop backend-ventas || true
+            docker rm backend-ventas || true
+            docker run -d --name backend-ventas -p 8080:8080 --network app-network \
+              -e DB_ENDPOINT=${{ secrets.DB_ENDPOINT }} \
+              -e DB_PORT=${{ secrets.DB_PORT }} \
+              -e DB_NAME=${{ secrets.DB_NAME }} \
+              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
+
+      - name: Verify Deployment
+        run: echo "✓ Deployment completed successfully"
