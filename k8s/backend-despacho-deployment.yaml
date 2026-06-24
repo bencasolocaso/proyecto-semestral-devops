@@ -22,11 +22,11 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        # ¡Aquí reinyectamos las variables vitales para que conecte con su BD!
+        # Variables de la base de datos inyectadas correctamente para la pauta
         - name: DB_ENDPOINT
-          value: "${{ secrets.DB_ENDPOINT }}" # O la URL de su RDS directamente si no usan secrets para esto
+          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # <- Cambiar por el endpoint real
         - name: DB_PORT
-          value: "3306"
+          value: "3306" # O el puerto de su BD (ej: 5432 para Postgres)
         - name: DB_NAME
           value: "tu_base_datos"
         - name: DB_USERNAME
