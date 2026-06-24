@@ -1,34 +1,33 @@
-name: Build and Push Docker Images to Docker Hub and Deploy to EKS
+name: Build and Deploy to Amazon EKS
 
 on:
   push:
     branches: [ deploy ]
 
 env:
-  REGISTRY: docker.io
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: innovatech-eks
+  ECR_REGISTRY: 816051012141.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      # Build y Push Backend Despachos
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build and push Backend Despachos
         uses: docker/build-push-action@v5
         with:
@@ -36,12 +35,9 @@ jobs:
           file: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
-            ${{ secrets.DOCKER_USERNAME }}/backend-despacho:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-despacho:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-despacho:buildcache,mode=max
+            ${{ env.ECR_REGISTRY }}/back-despachos:latest
+            ${{ env.ECR_REGISTRY }}/back-despachos:${{ github.sha }}
 
-      # Build y Push Backend Ventas
       - name: Build and push Backend Ventas
         uses: docker/build-push-action@v5
         with:
@@ -49,12 +45,9 @@ jobs:
           file: ./back-Ventas_SpringBoot/Springboot-API-REST/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
-            ${{ secrets.DOCKER_USERNAME }}/backend-ventas:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-ventas:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/backend-ventas:buildcache,mode=max
+            ${{ env.ECR_REGISTRY }}/back-ventas:latest
+            ${{ env.ECR_REGISTRY }}/back-ventas:${{ github.sha }}
 
-      # Build y Push Frontend
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
         with:
@@ -62,10 +55,8 @@ jobs:
           file: ./front_despacho/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
-            ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/frontend-despacho:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/frontend-despacho:buildcache,mode=max
+            ${{ env.ECR_REGISTRY }}/front-despacho:latest
+            ${{ env.ECR_REGISTRY }}/front-despacho:${{ github.sha }}
 
   deploy:
     needs: build-and-push
@@ -75,28 +66,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Configurar credenciales temporales de AWS Academy (Vocareum)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      # 2. Conectarse al clúster EKS creado
-      - name: Update Kubeconfig for EKS
+      - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --region us-east-1 --name proyecto-devops-cluster
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER_NAME }}
 
-      # 3. Aplicar los manifiestos de Kubernetes en el clúster
-      - name: Deploy manifests to EKS
-        run: |
-          kubectl apply -f k8s/
+      - name: Verify cluster connection
+        run: kubectl get nodes
 
-      - name: Verify Deployment
+      - name: Deploy manifests
+        run: kubectl apply -f k8s/
+
+      - name: Verify deployment
         run: |
+          kubectl get pods -o wide
+          kubectl get deployments
           kubectl rollout status deployment/frontend-despacho || true
           kubectl rollout status deployment/backend-despacho || true
           kubectl rollout status deployment/backend-ventas || true
-          echo "✓ Deployment completed successfully"
