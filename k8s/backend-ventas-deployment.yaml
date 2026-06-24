@@ -15,18 +15,18 @@ spec:
     spec:
       containers:
       - name: backend-ventas
-        image: bencasolocaso/backend-ventas:latest
+        # 🔥 Cambiado a la URI interna de su Amazon ECR para Ventas
+        image: 816051012141.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        # Variables de entorno para la base de datos reinyectadas
         - name: DB_ENDPOINT
-          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # <- Cambiar por el endpoint real
+          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # Aquí pegan el endpoint de su BD RDS
         - name: DB_PORT
-          value: "3306" # O el puerto de su BD
+          value: "3306"
         - name: DB_NAME
           value: "tu_base_datos"
         - name: DB_USERNAME
@@ -44,6 +44,6 @@ spec:
     app: backend-ventas
   ports:
   - protocol: TCP
-    port: 80
-    targetPort: 8080
-  type: LoadBalancer
+    port: 80         # Puerto interno del clúster
+    targetPort: 8080 # Redirige al contenedor
+  type: ClusterIP # 🔥 Cambiado a ClusterIP para cumplir con la red interna y la pauta
