@@ -15,18 +15,18 @@ spec:
     spec:
       containers:
       - name: backend-despacho
-        image: bencasolocaso/backend-despacho:latest
+        # 🔥 Cambiado a la URI interna de su Amazon ECR
+        image: 816051012141.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8080
+        - containerPort: 8081 # Ajustado al puerto real de su SpringBoot
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        # Variables de la base de datos inyectadas correctamente para la pauta
         - name: DB_ENDPOINT
-          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # <- Cambiar por el endpoint real
+          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # Aquí pegan el endpoint de su BD
         - name: DB_PORT
-          value: "3306" # O el puerto de su BD (ej: 5432 para Postgres)
+          value: "3306"
         - name: DB_NAME
           value: "tu_base_datos"
         - name: DB_USERNAME
@@ -44,6 +44,6 @@ spec:
     app: backend-despacho
   ports:
   - protocol: TCP
-    port: 80
-    targetPort: 8080
-  type: LoadBalancer
+    port: 80        # Puerto interno del clúster
+    targetPort: 8081 # Cambiado para que coincida con el contenedor
+  type: ClusterIP # 🔥 Cambiado a ClusterIP para cumplir con el DNS interno de la pauta
