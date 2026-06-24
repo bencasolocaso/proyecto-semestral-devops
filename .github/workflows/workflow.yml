@@ -27,7 +27,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Backend Despachos
       - name: Build and push Backend Despachos
         uses: docker/build-push-action@v5
         with:
@@ -36,7 +35,6 @@ jobs:
           push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest
 
-      # Backend Ventas
       - name: Build and push Backend Ventas
         uses: docker/build-push-action@v5
         with:
@@ -45,7 +43,6 @@ jobs:
           push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/back-ventas:latest
 
-      # Frontend
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
         with:
