@@ -15,4 +15,4 @@ DB_ENDPOINT=mysql-db-rds.amazonaws.com
 DB_PORT=3306
 DB_NAME=despacho_db
 DB_USERNAME=despacho_user
-DB_PASSWORD=tu_password_segura
+DB_PASSWORD=tu_password_segura.
