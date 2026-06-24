@@ -1,3 +1,4 @@
+
 name: Build and Deploy to Amazon EKS
 
 on:
@@ -90,7 +91,7 @@ steps:
 
   - name: Validate manifests
     run: |
-      ls -R k8s
+      ls -R k8s/
 
   - name: Deploy manifests
     run: |
