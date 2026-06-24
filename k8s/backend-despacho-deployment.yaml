@@ -22,13 +22,17 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        # ¡Aquí reinyectamos las variables vitales para que conecte con su BD!
+        - name: DB_ENDPOINT
+          value: "${{ secrets.DB_ENDPOINT }}" # O la URL de su RDS directamente si no usan secrets para esto
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "tu_base_datos"
+        - name: DB_USERNAME
+          value: "admin"
+        - name: DB_PASSWORD
+          value: "tu_password"
 ---
 apiVersion: v1
 kind: Service
