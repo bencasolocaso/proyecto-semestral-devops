@@ -1,30 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend-despacho
+  name: backend-ventas
   namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: backend-despacho
+      app: backend-ventas
   template:
     metadata:
       labels:
-        app: backend-despacho
+        app: backend-ventas
     spec:
       containers:
-      - name: backend-despacho
-        # 🔥 Cambiado a la URI interna de su Amazon ECR
-        image: 816051012141.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest
+      - name: backend-ventas
+        # 🔥 URI interna de su repositorio ECR para Ventas
+        image: 816051012141.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8081 # Ajustado al puerto real de su SpringBoot
+        - containerPort: 8080
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
         - name: DB_ENDPOINT
-          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # Aquí pegan el endpoint de su BD
+          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # <- Reemplazar por su RDS real
         - name: DB_PORT
           value: "3306"
         - name: DB_NAME
@@ -37,13 +37,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-despacho-service
+  name: backend-ventas-service
   namespace: default
 spec:
   selector:
-    app: backend-despacho
+    app: backend-ventas
   ports:
   - protocol: TCP
-    port: 80        # Puerto interno del clúster
-    targetPort: 8081 # Cambiado para que coincida con el contenedor
-  type: ClusterIP # 🔥 Cambiado a ClusterIP para cumplir con el DNS interno de la pauta
+    port: 80         # Puerto interno del clúster
+    targetPort: 8080 # Redirige al contenedor
+  type: ClusterIP # 🔥 Protegido dentro de la red privada
