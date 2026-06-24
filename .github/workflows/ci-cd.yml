@@ -1,4 +1,4 @@
-name: Build and Push Docker Images to Docker Hub
+name: Build and Push Docker Images to Docker Hub and Deploy to EKS
 
 on:
   push:
@@ -75,54 +75,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2 Frontend
-        uses: appleboy/ssh-action@master
+      # 1. Configurar credenciales temporales de AWS Academy (Vocareum)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_FRONTEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: |
-            cd /home/ec2-user/app
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
-            docker stop frontend || true
-            docker rm frontend || true
-            docker run -d --name frontend -p 80:80 --network app-network \
-              ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
 
-      - name: Deploy to EC2 Backends
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_BACKENDS_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: |
-            cd /home/ec2-user/app
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-            
-            # Deploy Backend Despachos
-            docker pull ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
-            docker stop backend-despacho || true
-            docker rm backend-despacho || true
-            docker run -d --name backend-despacho -p 8081:8081 --network app-network \
-              -e DB_ENDPOINT=${{ secrets.DB_ENDPOINT }} \
-              -e DB_PORT=${{ secrets.DB_PORT }} \
-              -e DB_NAME=${{ secrets.DB_NAME }} \
-              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
-              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
-            
-            # Deploy Backend Ventas
-            docker pull ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
-            docker stop backend-ventas || true
-            docker rm backend-ventas || true
-            docker run -d --name backend-ventas -p 8080:8080 --network app-network \
-              -e DB_ENDPOINT=${{ secrets.DB_ENDPOINT }} \
-              -e DB_PORT=${{ secrets.DB_PORT }} \
-              -e DB_NAME=${{ secrets.DB_NAME }} \
-              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
-              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
+      # 2. Conectarse al clúster EKS creado
+      - name: Update Kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name proyecto-devops-cluster
+
+      # 3. Aplicar los manifiestos de Kubernetes en el clúster
+      - name: Deploy manifests to EKS
+        run: |
+          kubectl apply -f k8s/
 
       - name: Verify Deployment
-        run: echo "✓ Deployment completed successfully"
+        run: |
+          kubectl rollout status deployment/frontend-despacho || true
+          kubectl rollout status deployment/backend-despacho || true
+          kubectl rollout status deployment/backend-ventas || true
+          echo "✓ Deployment completed successfully"
