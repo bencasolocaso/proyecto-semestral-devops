@@ -22,13 +22,17 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        # Variables de entorno para la base de datos reinyectadas
+        - name: DB_ENDPOINT
+          value: "URL_DE_SU_BASE_DE_DATOS_RDS" # <- Cambiar por el endpoint real
+        - name: DB_PORT
+          value: "3306" # O el puerto de su BD
+        - name: DB_NAME
+          value: "tu_base_datos"
+        - name: DB_USERNAME
+          value: "admin"
+        - name: DB_PASSWORD
+          value: "tu_password"
 ---
 apiVersion: v1
 kind: Service
