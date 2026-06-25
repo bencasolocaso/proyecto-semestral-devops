@@ -4,7 +4,7 @@ metadata:
   name: frontend-despacho
   namespace: default
 spec:
-  replicas: 2 # Duplicado para alta disponibilidad como pide la pauta
+  replicas: 2
   selector:
     matchLabels:
       app: frontend-despacho
@@ -15,11 +15,17 @@ spec:
     spec:
       containers:
       - name: frontend-despacho
-        # 🔥 URI interna de su ECR para el Front
-        image: 816051012141.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest
+        image: <TU_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 80 # Puerto en el que corre el servidor web (Nginx/Apache) del Front
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -33,4 +39,4 @@ spec:
   - protocol: TCP
     port: 80
     targetPort: 80
-  type: LoadBalancer # 🔥 Crea el balanceador de AWS conectado a las subredes públicas
+  type: LoadBalancer
