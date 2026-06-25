@@ -1,104 +1,53 @@
 
-name: Build and Deploy to Amazon EKS
-
+name: ci_cd_backend_eks
 on:
-push:
-branches: [ deploy ]
+  push:
+    branches: ["deploy"]
 
 env:
-AWS_REGION: us-east-1
-EKS_CLUSTER_NAME: innovatech-eks
+  AWS_REGION: us-east-1
+  EKS_NAMESPACE: tienda
+  IMAGE_REPO: tienda-backend
 
 jobs:
-build-and-push:
-runs-on: ubuntu-latest
+  build_push_deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v4
 
-```
-steps:
-  - name: Checkout code
-    uses: actions/checkout@v4
+    - name: Configurar credenciales temporales de AWS
+      run: |
+        mkdir -p ~/.aws
+        cat > ~/.aws/credentials << EOF
+        [default]
+        aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+        EOF
+        cat > ~/.aws/config << EOF
+        [default]
+        region=${AWS_REGION}
+        output=json
+        EOF
 
-  - name: Configure AWS credentials
-    uses: aws-actions/configure-aws-credentials@v2
-    with:
-      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      aws-region: ${{ env.AWS_REGION }}
+    - name: Login seguro a Amazon ECR
+      run: |
+        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
-  - name: Login to Amazon ECR
-    id: login-ecr
-    uses: aws-actions/amazon-ecr-login@v2
+    - name: Construir y publicar imagen Docker inmutable
+      run: |
+        TAG="eks-${GITHUB_RUN_NUMBER}"
+        IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_REPO}:${TAG}"
+        docker build -t ${IMAGE} ./backend
+        docker push ${IMAGE}
+        echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
-  - name: Build and push Backend Despachos
-    uses: docker/build-push-action@v5
-    with:
-      context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
-      file: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO/Dockerfile
-      push: true
-      tags: |
-        ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest
-        ${{ steps.login-ecr.outputs.registry }}/back-despachos:${{ github.sha }}
+    - name: Conectar Runner a Amazon EKS
+      run: |
+        aws eks update-kubeconfig --region ${AWS_REGION} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
-  - name: Build and push Backend Ventas
-    uses: docker/build-push-action@v5
-    with:
-      context: ./back-Ventas_SpringBoot/Springboot-API-REST
-      file: ./back-Ventas_SpringBoot/Springboot-API-REST/Dockerfile
-      push: true
-      tags: |
-        ${{ steps.login-ecr.outputs.registry }}/back-ventas:latest
-        ${{ steps.login-ecr.outputs.registry }}/back-ventas:${{ github.sha }}
-
-  - name: Build and push Frontend
-    uses: docker/build-push-action@v5
-    with:
-      context: ./front_despacho
-      file: ./front_despacho/Dockerfile
-      push: true
-      tags: |
-        ${{ steps.login-ecr.outputs.registry }}/front-despacho:latest
-        ${{ steps.login-ecr.outputs.registry }}/front-despacho:${{ github.sha }}
-```
-
-deploy:
-needs: build-and-push
-runs-on: ubuntu-latest
-
-```
-steps:
-  - name: Checkout code
-    uses: actions/checkout@v4
-
-  - name: Configure AWS credentials
-    uses: aws-actions/configure-aws-credentials@v2
-    with:
-      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      aws-region: ${{ env.AWS_REGION }}
-
-  - name: Update kubeconfig
-    run: |
-      aws eks update-kubeconfig \
-        --name ${{ env.EKS_CLUSTER_NAME }} \
-        --region ${{ env.AWS_REGION }}
-
-  - name: Debug cluster
-    run: |
-      kubectl get nodes
-      kubectl get deployments -A
-
-  - name: Validate manifests
-    run: |
-      ls -R k8s/
-
-  - name: Deploy manifests
-    run: |
-      kubectl apply -f k8s/
-
-  - name: Verify deployment
-    run: |
-      kubectl get all
-      kubectl get pods -o wide
-```
+    - name: Despliegue en EKS (Rolling Update)
+      run: |
+        kubectl -n ${EKS_NAMESPACE} set image deployment/backend backend=${IMAGE}
+        kubectl -n ${EKS_NAMESPACE} rollout status deployment/backend
