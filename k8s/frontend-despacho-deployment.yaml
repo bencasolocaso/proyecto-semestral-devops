@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend-despacho
-        image: 691743845927dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest
+        image: 691743845927.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80
