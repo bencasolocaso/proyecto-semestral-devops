@@ -1,138 +1,145 @@
-# 🚀 Innovatech Chile | Plataforma DevOps Cloud-Native en AWS
-
-![AWS](https://img.shields.io/badge/AWS-EKS-orange?style=for-the-badge&logo=amazonaws)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.35-326CE5?style=for-the-badge&logo=kubernetes)
-![Docker](https://img.shields.io/badge/Docker-Contenedores-2496ED?style=for-the-badge&logo=docker)
-![GitHub Actions](https://img.shields.io/badge/CI%2FCD-Automatizado-2088FF?style=for-the-badge&logo=githubactions)
-![Estado](https://img.shields.io/badge/Producción-Ready-success?style=for-the-badge)
+# 🚀 Innovatech Chile | Plataforma Cloud-Native en AWS (DevOps Enterprise)
 
 ---
 
-## 🧭 Descripción general
+## 🧭 Resumen Ejecutivo
 
-Innovatech Chile es una plataforma cloud-native basada en microservicios desplegada en AWS, diseñada bajo estándares modernos de ingeniería DevOps.
+Innovatech Chile es una plataforma cloud-native basada en microservicios, desplegada sobre AWS y diseñada bajo prácticas modernas de DevOps, automatización CI/CD y arquitectura distribuida.
 
-El sistema simula un entorno productivo real con:
-- Arquitectura de microservicios
-- Pipeline CI/CD completamente automatizado
-- Orquestación con Kubernetes (Amazon EKS)
-- Infraestructura segura bajo modelo Zero Trust
-- Diseño escalable y observable
+El sistema simula un entorno productivo real con enfoque en:
+- Alta disponibilidad (Multi-AZ)
+- Escalabilidad horizontal
+- Seguridad bajo modelo Zero Trust
+- Automatización completa del ciclo de vida del software
+- Observabilidad centralizada
 
 ---
 
-## 🏗️ Arquitectura del sistema
+## 🏗️ Arquitectura General
 
-Desarrollador → GitHub → GitHub Actions (CI/CD) → Docker (multi-stage) → Amazon ECR → Amazon EKS → Microservicios
+Flujo de despliegue end-to-end:
+
+GitHub → GitHub Actions → Docker (multi-stage build) → Amazon ECR → Amazon EKS → Microservicios
 
 ---
 
 ## ☁️ Infraestructura en AWS
 
+### Componentes principales
+
 - Amazon VPC (10.0.0.0/16)
 - Amazon EKS (Kubernetes v1.35)
-- Amazon ECR
-- Elastic Load Balancer
-- AWS CloudWatch
-- AWS Systems Manager
+- Amazon ECR (registro de contenedores)
+- Elastic Load Balancer (exposición pública)
+- AWS CloudWatch (logs y monitoreo)
+- AWS Systems Manager (acceso seguro sin SSH)
 - NAT Gateway / Internet Gateway
 
-Arquitectura:
-- Multi-AZ
+### Diseño de red
+
+- Arquitectura Multi-AZ
 - Subredes públicas y privadas
 - Backend aislado en subred privada
-- Comunicación interna controlada
+- Exposición controlada mediante Load Balancer
+- Comunicación interna restringida dentro del clúster
 
 ---
 
 ## 🔐 Seguridad (Zero Trust)
 
-- Sin SSH (puerto 22 cerrado)
-- Sin llaves .pem
-- Acceso por AWS Systems Manager
-- Credenciales temporales (STS)
-- ClusterIP para backend interno
-- Superficie de ataque reducida
+El sistema implementa un enfoque Zero Trust:
+
+- Eliminación de acceso SSH (puerto 22 cerrado)
+- Sin uso de llaves .pem
+- Acceso administrativo mediante AWS Systems Manager Session Manager
+- Autenticación con credenciales temporales (STS)
+- Servicios internos expuestos únicamente vía ClusterIP
+- Reducción de superficie de ataque
 
 ---
 
 ## ☸️ Kubernetes (Amazon EKS)
 
 - Cluster: innovatech-eks-cluster
-- Versión: v1.35
-- Nodos: T3 Large Spot
+- Versión: Kubernetes v1.35
+- Tipo de nodos: T3 Large (Spot Instances)
 - Autoescalado habilitado
 
-Servicios:
-- Frontend → LoadBalancer (público)
-- Backend Ventas → ClusterIP (interno)
-- Backend Logística → ClusterIP (interno)
+### Exposición de servicios
+
+| Servicio         | Tipo          | Exposición |
+|----------------|--------------|------------|
+| Frontend        | LoadBalancer | Público    |
+| Backend Ventas  | ClusterIP    | Interno    |
+| Backend Logística | ClusterIP  | Interno    |
 
 ---
 
-## 🐳 Contenedores
+## 🐳 Estrategia de Contenedores
 
 - Microservicios dockerizados
-- Multi-stage builds
-- Imágenes optimizadas
+- Uso de multi-stage builds para optimización
+- Imágenes livianas y seguras
 - Publicación en Amazon ECR
 
-Versionado:
+Versionado de imágenes:
 eks-${{ github.run_number }}
 
 ---
 
-## ⚙️ Pipeline CI/CD (GitHub Actions)
+## ⚙️ CI/CD (GitHub Actions)
 
-Flujo:
-Desarrollador → GitHub → Actions → Docker → ECR → EKS → Deploy
+### Flujo de despliegue
 
-Etapas:
-- Checkout del código
-- Autenticación AWS (STS)
+GitHub → Actions → Docker → ECR → EKS → Deploy
+
+### Etapas del pipeline
+
+- Checkout del código fuente
+- Autenticación con AWS (STS)
 - Build de imagen Docker
-- Push a ECR
-- Deploy en EKS
+- Push a Amazon ECR
+- Deploy en Amazon EKS
 - Rolling update sin downtime
 
-Características:
-- Deploy automático en main
-- Versionado dinámico
+### Características
+
+- Despliegue automático en cada push a main
+- Versionado dinámico de imágenes
 - Entrega inmutable
-- Cero downtime
+- Cero downtime en producción
 
 ---
 
-## 📈 Escalabilidad y resiliencia
+## 📈 Escalabilidad y Resiliencia
 
-Horizontal Pod Autoscaler (HPA):
-- Escalado automático por CPU
-- Umbral 50%
-- Ajuste dinámico de réplicas
-- Optimización con Spot Instances
+- Horizontal Pod Autoscaler (HPA)
+- Escalado automático basado en CPU
+- Umbral de uso: 50%
+- Optimización de costos con instancias Spot
 
 ---
 
 ## 📊 Observabilidad
 
-Metrics Server:
-kubectl top pods -n tienda
+### Metrics Server
+- kubectl top pods -n tienda
 
-CloudWatch:
-- Logs API Server
+### CloudWatch
+- Logs del API Server
 - Auditoría del clúster
-- Eventos de autenticación
 - Eventos del sistema
+- Eventos de autenticación
 
 ---
 
 ## 🧩 Microservicios
 
-| Servicio | Tecnología | Función |
-|----------|------------|----------|
-| Frontend | JavaScript | Interfaz |
-| Ventas | Spring Boot | Gestión de ventas |
-| Logística | Spring Boot | Gestión de entregas |
+| Servicio   | Tecnología   | Función |
+|------------|-------------|--------|
+| Frontend   | JavaScript  | Interfaz de usuario |
+| Ventas     | Spring Boot | Gestión de ventas |
+| Logística  | Spring Boot | Gestión de entregas |
 
 ---
 
@@ -147,24 +154,24 @@ CloudWatch:
 
 ---
 
-## 🚀 Validación del sistema
+## 🚀 Validación del Sistema
 
-kubectl get pods -n tienda  
-kubectl get svc -n tienda  
-kubectl get deployments -n tienda  
-kubectl top pods -n tienda  
+kubectl get pods -n tienda
+kubectl get svc -n tienda
+kubectl get deployments -n tienda
+kubectl top pods -n tienda
 
 ---
 
-## 🎯 Resultados de ingeniería
+## 🎯 Resultados de Ingeniería
 
-- Infraestructura en AWS
-- Microservicios
-- Kubernetes (EKS)
-- CI/CD automatizado
-- Seguridad Zero Trust
-- Escalabilidad horizontal
-- Observabilidad
+- Infraestructura cloud en AWS operativa
+- Arquitectura de microservicios distribuida
+- Orquestación con Kubernetes (EKS)
+- CI/CD completamente automatizado
+- Seguridad bajo modelo Zero Trust
+- Escalabilidad horizontal automática
+- Observabilidad centralizada
 
 ---
 
